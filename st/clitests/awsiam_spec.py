@@ -28,7 +28,15 @@ from s3cmd import S3cmdTest
 from s3fi import S3fiTest
 import shutil
 
-
+def get_arn_from_policy_object(raw_aws_cli_output):
+    raw_lines = raw_aws_cli_output.split('\n')
+    for _, item in enumerate(raw_lines):
+        if (item.startswith("POLICY")):
+            line = item.split('\t')
+            arn = line[1]
+        else:
+            continue
+    return arn
 
 def user_tests():
     date_pattern = "[0-9|]+Z"
@@ -62,6 +70,35 @@ def user_tests():
 
     AwsIamTest('Delete User').delete_user("testUser").execute_test().command_is_successful()
 
+def policy_tests():
+    #create-policy
+    samplepolicy = os.path.join(os.path.dirname(__file__), 'policy_files', 'iam-policy.json')
+    samplepolicy_testing = "file://" + os.path.abspath(samplepolicy)
+    result = AwsIamTest('Create Policy').create_policy("iampolicy",samplepolicy_testing).execute_test()
+    result.command_response_should_have("iampolicy")
+    arn = (get_arn_from_policy_object(result.status.stdout))
+
+    #create-policy fails if policy with same name already exists
+    AwsIamTest('Create Policy').create_policy("iampolicy",samplepolicy_testing).execute_test(negative_case=True)\
+        .command_should_fail().command_error_should_have("EntityAlreadyExists")
+
+    #get-policy
+    AwsIamTest('Get Policy').get_policy(arn).execute_test().command_is_successful()
+
+    #list-policies
+    AwsIamTest('List Policies').list_policies().execute_test().command_is_successful()
+
+    #delete-policy
+    AwsIamTest('Delete Policy').delete_policy(arn).execute_test().command_is_successful()
+
+    #get-policy on non-existing policy
+    AwsIamTest('Get Policy').get_policy(arn).execute_test(negative_case=True).command_should_fail().command_error_should_have("NoSuchEntity")
+
+    #delete-policy on non-existing policy
+    AwsIamTest('Delete Policy').delete_policy(arn).execute_test(negative_case=True).command_should_fail().command_error_should_have("NoSuchEntity")
+
+
 if __name__ == '__main__':
 
     user_tests()
+    policy_tests()

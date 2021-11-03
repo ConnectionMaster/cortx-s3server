@@ -95,7 +95,7 @@ class PolicyImpl implements PolicyDAO {
     List<Policy> policyList =
         storeInstance.findAll(key, account, POLICY_PREFIX);
     for (Policy policy : policyList) {
-      if (name.equals(policy.getName())) {
+      if (name.equalsIgnoreCase(policy.getName())) {
         return policy;
       }
     }
